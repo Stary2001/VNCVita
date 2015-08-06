@@ -7,7 +7,7 @@
 #include <psp2/net/net.h>
 #include <psp2/kernel/threadmgr.h>
 #include <vita2d.h>
-#include "../gui/font.h"
+#include <gui/font.h>
 
 extern bitmap_font *font;
 
@@ -398,7 +398,6 @@ void vnc_handle_message(vnc_client *c)
 			uint16_t num_rects = 0;
 			sceNetRecv(c->client_fd, &num_rects, 2, 0);
 			num_rects = sceNetNtohs(num_rects);
-			sceKernelDelayThread(5000000);
 			int i = 0;
 			for(; i < num_rects; i++)
 			{
@@ -428,7 +427,6 @@ void vnc_handle_message(vnc_client *c)
 							free(update);
 							return;
 						}
-						//sceKernelDelayThread(1000000);
 						// stuff into texture..
 						do_raw(c, update, x, y, w, h);
 						free(update);
@@ -444,7 +442,6 @@ void vnc_handle_message(vnc_client *c)
 						copy_x = sceNetNtohs(copy_x);
 						copy_y = sceNetNtohs(copy_y);
 						//log_line("copyrekt %d %d -> %d %d", copy_x, copy_y, x, y);
-						sceKernelDelayThread(5000000);
 						do_copyrect(c, copy_x, copy_y, x, y, w, h);
 					}
 					break;

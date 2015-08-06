@@ -1,9 +1,8 @@
 TARGET = VNCVita
-OBJS   = main.o gui/font_data.o gui/font.o gui/label.o gui/pane.o gui/gui.o util/list.o vnc/vnc.o
+OBJS   = main.o vnc/vnc.o
 
 LIBS = -lvita2d -lSceKernel_stub -lSceDisplay_stub -lSceGxm_stub	\
-	-lSceCtrl_stub -lSceNet_stub -lpng -lz
-
+	-lSceCtrl_stub -lSceNet_stub -lvitagui -lpng -lz
 PREFIX  = $(DEVKITARM)/bin/arm-none-eabi
 CC      = $(PREFIX)-gcc
 CFLAGS  = -Wall -specs=psp2.specs -O3
