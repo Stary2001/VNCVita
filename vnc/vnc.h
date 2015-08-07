@@ -51,15 +51,6 @@ struct vnc_set_encodings
 	uint16_t num_encodings;
 };
 
-struct vnc_rre_tile_32bpp
-{
-	uint32_t colour;
-	uint16_t x;
-	uint16_t y;
-	uint16_t w;
-	uint16_t h;
-};
-
 struct vnc_client
 {
         int epoll_fd;
@@ -73,15 +64,25 @@ struct vnc_client
 	struct vnc_pixelformat format;
 
 	vita2d_texture *framebuffer_tex;
-	uint32_t *framebuffer;
+	void *framebuffer;
 	uint8_t draw;
         vnc_state state;
 };
-
 typedef struct vnc_client vnc_client;
+
+uint8_t vnc_read_pixel_8bpp(vnc_client *c);
+uint16_t vnc_read_pixel_16bpp(vnc_client *c);
+uint32_t vnc_read_pixel_32bpp(vnc_client *c);
 
 vnc_client *vnc_create(const char *host, int port);
 void vnc_close(vnc_client *c);
 void vnc_handle(vnc_client *c);
 void vnc_send_update_request(vnc_client *c, uint8_t inc, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 void vnc_send_encodings(vnc_client *c);
+
+int read_from_server(vnc_client *c, void* buff, int len);
+
+void do_raw(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+void do_copyrect(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+void do_rre(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+void do_hextile(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h);

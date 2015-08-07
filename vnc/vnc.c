@@ -138,6 +138,27 @@ struct vnc_serverinit vnc_read_serverinit(vnc_client *c)
 	return packet;
 }
 
+uint8_t vnc_read_pixel_8bpp(vnc_client *c)
+{
+	uint8_t x;
+	sceNetRecv(c->client_fd, &x, 1, 0);
+	return x;
+}
+
+uint16_t vnc_read_pixel_16bpp(vnc_client *c)
+{
+	uint16_t x;
+        sceNetRecv(c->client_fd, &x, 2, 0);
+        return x;
+}
+
+uint32_t vnc_read_pixel_32bpp(vnc_client *c)
+{
+	uint32_t x;
+	sceNetRecv(c->client_fd, &x, 4, 0);
+	return x;
+}
+
 void vnc_close(vnc_client *c)
 {
 	sceNetEpollControl(c->epoll_fd, PSP2_NET_EPOLL_CTL_DEL, c->client_fd, NULL);
@@ -149,20 +170,9 @@ void vnc_handle_message(vnc_client *c);
 SceGxmTextureFormat get_gxm_format(struct vnc_pixelformat pix)
 {
 	if(!pix.true_colour)	return 0;
-	if(pix.bpp == 24)
+	if(pix.bpp == 32)
 	{
-		if(pix.red_shift == 16)
-		{
-			return SCE_GXM_TEXTURE_FORMAT_U8U8U8_BGR;
-		}
-		else
-		{
-			return SCE_GXM_TEXTURE_FORMAT_U8U8U8_RGB;
-		}
-	}
-	else if(pix.bpp == 32)
-	{
-		return SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_BGRA;
+		return SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ARGB;
 	}
 }
 
@@ -303,88 +313,6 @@ void vnc_handle(vnc_client *c)
 		}
 	}
 }
-
-
-void do_raw(vnc_client *c, char *pixels, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
-{
-	int i = 0;
-	int bpp = c->format.bpp / 8; // bytes per pixel
-
-	int r = c->format.red_shift / 8;
-	int g = c->format.green_shift / 8;
-	int b = c->format.blue_shift / 8;
-
-	for(; i < h; i++)
-	{
-		int j = 0;
-		for(; j < w; j++)
-		{
-			c->framebuffer[(c->width * (i + y)) + j + x] = RGBA8(pixels[(i*w + j) * bpp + r], pixels[(i*w + j) * bpp + g], pixels[(i*w + j) * bpp + b], 0xff);
-		}
-	}
-}
-
-void do_copyrect(vnc_client *c, uint16_t copy_x, uint16_t copy_y, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
-{
-	int i = 0;
-	for(; i < h; i++)
-	{
-		memcpy(c->framebuffer + x + (y * c->width), c->framebuffer + copy_x + ( (copy_y + i) * c->width), w);
-	}
-}
-
-void do_rre(vnc_client *c, uint32_t bg, uint32_t num_subrects, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
-{
-	/*if(num_subrects != 0)
-	{
-		log_line("rre, bg %d with %d subrects, x %d y %d w %d h %d", bg, num_subrects, x, y, w, h);
-		sceKernelDelayThread(750000);
-	}*/
-
-	if(c->format.bpp == 32)
-	{
-		uint32_t t = RGBA8(bg >> c->format.red_shift & 0xff, bg >> c->format.green_shift & 0xff, bg >> c->format.blue_shift & 0xff, 0xff);
-		bg = t;
-	}
-
-	int i = 0;
-	int j = 0;
-	int k = 0;
-
-	for(; i < h; i++)
-	{
-		j = 0;
-		for(; j < w; j++)
-		{
-			c->framebuffer[(c->width * (i + y)) + j + x] = bg;
-		}
-	}
-
-	if(c->format.bpp == 32 && num_subrects != 0)
-	{
-		struct vnc_rre_tile_32bpp *tiles = malloc(sizeof(struct vnc_rre_tile_32bpp) * num_subrects);
-		read_from_server(c, tiles, sizeof(struct vnc_rre_tile_32bpp) * num_subrects);
-		uint32_t t = 0;
-		i = 0;
-		for(; i < num_subrects; i++)
-		{
-			tiles[i].x = sceNetNtohs(tiles[i].x);
-			tiles[i].y = sceNetNtohs(tiles[i].y);
-			tiles[i].w = sceNetNtohs(tiles[i].w);
-			tiles[i].h = sceNetNtohs(tiles[i].h);
-			t = RGBA8(tiles[i].colour >> c->format.red_shift & 0xff, tiles[i].colour >> c->format.green_shift & 0xff, tiles[i].colour >> c->format.blue_shift, 0xff);
-			// draw..
-			for(j=0; j < tiles[i].h; j++)
-			{
-				for(k=0; k < tiles[i].w; k++)
-				{
-					c->framebuffer[(c->width * (tiles[i].y+y+j)) + tiles[i].x + x + k] = t;
-				}
-			}
-		}
-	}
-}
-
 void vnc_handle_message(vnc_client *c)
 {
 	char message_type = -1;
@@ -415,48 +343,30 @@ void vnc_handle_message(vnc_client *c)
 				int encoding = 0;
 				sceNetRecv(c->client_fd, &encoding, 4, 0);
 				encoding = sceNetNtohl(encoding);
+				//printf("enc %d", encoding);
 				switch(encoding)
 				{
 					case 0:
 					{
-						uint32_t len = w * h * (c->format.bpp / 8);
-						char *update = (char*) malloc(len);
-						int ret = read_from_server(c, update, len);
-						if(ret == -1)
-						{
-							free(update);
-							return;
-						}
-						// stuff into texture..
-						do_raw(c, update, x, y, w, h);
-						free(update);
+						do_raw(c, x, y, w, h);
 					}
 					break;
 
 					case 1: // copyrect
 					{
-						uint16_t copy_x = 0;
-						uint16_t copy_y = 0;
-						sceNetRecv(c->client_fd, &copy_x, 2, 0);
-						sceNetRecv(c->client_fd, &copy_y, 2, 0);
-						copy_x = sceNetNtohs(copy_x);
-						copy_y = sceNetNtohs(copy_y);
-						//log_line("copyrekt %d %d -> %d %d", copy_x, copy_y, x, y);
-						do_copyrect(c, copy_x, copy_y, x, y, w, h);
+						do_copyrect(c, x, y, w, h);
 					}
 					break;
 					
 					case 2: // rre
 					{
-						uint32_t num_subrects = 0;
-						uint32_t bg = 0;
-						sceNetRecv(c->client_fd, &num_subrects, 4, 0);
-						if(c->format.bpp == 32)
-						{
-							sceNetRecv(c->client_fd, &bg, 4, 0);
-						}
-						num_subrects = sceNetNtohl(num_subrects);
-						do_rre(c, bg, num_subrects, x, y, w, h);
+						do_rre(c, x, y, w, h);
+					}
+					break;
+			
+					case 5: // hextile
+					{
+						do_hextile(c, x, y, w, h);
 					}
 					break;
 
@@ -479,6 +389,7 @@ void vnc_send_encodings(vnc_client *c)
 	uint16_t num_encodings = 3;
 	int encodings[3];
 
+	//encodings[0] = 5; // hextile
 	encodings[0] = 2; // rre
 	encodings[1] = 1; // copyrect
 	encodings[2] = 0; // raw

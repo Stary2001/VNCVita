@@ -1,5 +1,5 @@
 TARGET = VNCVita
-OBJS   = main.o vnc/vnc.o
+OBJS   = main.o vnc/vnc.o vnc/encodings.o
 
 LIBS = -lvita2d -lSceKernel_stub -lSceDisplay_stub -lSceGxm_stub	\
 	-lSceCtrl_stub -lSceNet_stub -lvitagui -lpng -lz
@@ -22,3 +22,7 @@ clean:
 copy: $(TARGET)_fixup.elf
 	@cp $(TARGET)_fixup.elf /mnt/rejuvenate-0.3-test4/
 	@echo "Copied!"
+
+ENCODINGS = $(wildcard vnc/encodings/*.c)
+
+vnc/encodings.o : $(ENCODINGS)

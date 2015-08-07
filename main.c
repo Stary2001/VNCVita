@@ -15,7 +15,7 @@ bitmap_font *font;
 int main()
 {
 	vita2d_init();
-	vita2d_set_clear_color(RGBA8(0xaa, 0xaa, 0xaa, 0xff));
+	vita2d_set_clear_color(RGBA8(0x88, 0x88, 0x88, 0xff));
 
 	font_load_debug_font();
 	SceCtrlData pad;
@@ -33,7 +33,6 @@ int main()
 		
 		if(vnc)
 		{
-			// sceKernelDelayThread(1000000/120);
 			vnc_handle(vnc);
 		}
 
@@ -41,7 +40,7 @@ int main()
 		vita2d_clear_screen();
 		if(vnc && vnc->draw)
 		{
-			vita2d_draw_texture_scale(vnc->framebuffer_tex, 0, 0, 950/(float)vnc->width, 544/(float)vnc->height);
+			vita2d_draw_texture_scale(vnc->framebuffer_tex, 0, 0, 960/(float)vnc->width, 544/(float)vnc->height);
 		}
 		vita2d_end_drawing();
 		vita2d_swap_buffers();
