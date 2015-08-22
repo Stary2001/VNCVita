@@ -4,6 +4,8 @@
 #include "vnc.h"
 #include <psp2/net/net.h>
 
+#include <debugnet.h>
+
 #define real_concat(a,b) a ## b
 #define concat(a,b) real_concat(a,b)
 
@@ -15,6 +17,8 @@
 void draw_rect_8(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t colour);
 void draw_rect_16(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour);
 void draw_rect_32(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t colour);
+
+extern int read_from_server(vnc_client *c, void* buff, int len);
 
 #define vnc_read_pixel concat3(vnc_read_pixel_,BPP,bpp)
 #define PIXEL uint32_t

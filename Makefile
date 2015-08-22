@@ -1,27 +1,28 @@
 TARGET = VNCVita
 OBJS   = main.o vnc/vnc.o vnc/encodings.o
 
-LIBS = -lvita2d -lSceKernel_stub -lSceDisplay_stub -lSceGxm_stub	\
-	-lSceCtrl_stub -lSceNet_stub -lvitagui -lpng -lz
-PREFIX  = $(DEVKITARM)/bin/arm-none-eabi
+LIBS = -lvita2d -ldebugnet -lSceTouch_stub -lSceDisplay_stub -lSceGxm_stub -lSceCtrl_stub -lSceNet_stub -lSceNetCtl_stub -lm
+
+PREFIX = $(VITASDK)/bin/arm-vita-eabi
+DB = /home/stary2001/vita-headers/db.json
+
 CC      = $(PREFIX)-gcc
-CFLAGS  = -Wall -specs=psp2.specs -O3
-ASFLAGS = $(CFLAGS)
+CXX	= $(PREFIX)-g++
+LD	= $(PREFIX)-ld
 
-all: $(TARGET)_fixup.elf
+CFLAGS  = -Wl,-q -Wall -O3 -I$(VITASDK)/include -L$(VITASDK)/lib
 
-%_fixup.elf: %.elf
-	psp2-fixup -q -S $< $@
+all: $(TARGET).velf
+
+%.velf: %.elf
+	$(PREFIX)-strip -g $<
+	vita-elf-create $< $@ $(DB) >/dev/null
 
 $(TARGET).elf: $(OBJS)
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
 
 clean:
 	@rm -rf $(TARGET)_fixup.elf $(TARGET).elf $(OBJS)
-
-copy: $(TARGET)_fixup.elf
-	@cp $(TARGET)_fixup.elf /mnt/rejuvenate-0.3-test4/
-	@echo "Copied!"
 
 ENCODINGS = $(wildcard vnc/encodings/*.c)
 

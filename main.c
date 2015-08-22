@@ -6,18 +6,23 @@
 #include <vita2d.h>
 #include "vnc/vnc.h"
 #include <stdio.h>
-#include <gui/font.h>
 
 PSP2_MODULE_INFO(0, 0, "VNCVita");
 
-bitmap_font *font;
+#include <debugnet.h>
 
+#define DEBUGGER_IP "192.168.0.13"
+#define DEBUGGER_PORT 18194
+#define VNC_IP "192.168.0.13"
+#define VNC_PORT 5900
 int main()
 {
+	debugNetInit(DEBUGGER_IP, DEBUGGER_PORT, DEBUG);
+	debugNetPrintf(DEBUG, "MAGIC!!\n");
+
 	vita2d_init();
 	vita2d_set_clear_color(RGBA8(0x88, 0x88, 0x88, 0xff));
 
-	font_load_debug_font();
 	SceCtrlData pad;
 	
 	vnc_client *vnc = NULL;
@@ -28,7 +33,7 @@ int main()
                 if (pad.buttons & PSP2_CTRL_START) break;
 		if (pad.buttons & PSP2_CTRL_SELECT && !vnc)
 		{
-			vnc = vnc_create("192.168.43.100", 5900);
+			vnc = vnc_create(VNC_IP, VNC_PORT);
 		}
 		
 		if(vnc)
@@ -46,8 +51,8 @@ int main()
 		vita2d_swap_buffers();
 	}
 	vita2d_fini();
-	font_free_debug_font();
-
+	
+	debugNetFinish();
 	sceKernelExitProcess(0);
 	return 0;
 }

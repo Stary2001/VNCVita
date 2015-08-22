@@ -1,3 +1,4 @@
+#undef vnc_rre_tile
 #define vnc_rre_tile concat(vnc_rre_tile,BPP)
 #define do_rreBBP concat(do_rre_, BPP)
 
@@ -13,8 +14,9 @@ struct vnc_rre_tile
 void do_rreBBP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
 	uint32_t num_subrects = 0;
-	sceNetRecv(c->client_fd, &num_subrects, 4, 0);
+	read_from_server(c, &num_subrects, 4);
 	num_subrects = sceNetNtohl(num_subrects);
+	debugNetPrintf(DEBUG, "%i subrects", num_subrects);
 
 	PIXEL bg = vnc_read_pixel(c);
 

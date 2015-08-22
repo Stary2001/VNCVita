@@ -43,7 +43,7 @@ void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h
 			}
 
 			char subenc = 0;
-			sceNetRecv(c->client_fd, &subenc, 1, 0);
+			read_from_server(c, &subenc, 1);
 			if(subenc & 1)
 			{
 				// read wxh pixel values
@@ -64,7 +64,7 @@ void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h
 				}
 				if(subenc & 8)
 				{
-					sceNetRecv(c->client_fd, &subrect_count, 1, 0);
+					read_from_server(c, &subrect_count, 1);
 				}
 				if(subenc & 16)
 				{
@@ -83,8 +83,8 @@ void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h
 						for(i = 0; i < subrect_count; i++)
 						{
 							PIXEL p = vnc_read_pixel(c);
-							sceNetRecv(c->client_fd, &xy, 1, 0);
-       		                                 	sceNetRecv(c->client_fd, &wh, 1, 0);
+							read_from_server(c, &xy, 1);
+       		                                 	read_from_server(c, &wh, 1);
 							draw_rectBPP(c, x + ((xy >> 4) & 0xf), y + (xy & 0xf), ((wh >> 4) & 0xf) + 1, (wh & 0xf) + 1, p);
 						}
 						subrects_coloured = 0;
@@ -93,8 +93,8 @@ void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h
 					{
 						for(i = 0; i < subrect_count; i++)
 						{
-							sceNetRecv(c->client_fd, &xy, 1, 0);
-							sceNetRecv(c->client_fd, &wh, 1, 0);
+							read_from_server(c, &xy, 1);
+							read_from_server(c, &wh, 1);
 							draw_rectBPP(c, x + ((xy >> 4) & 0xf), y + (xy & 0xf), ((wh >> 4) & 0xf) + 1, (wh & 0xf) + 1, fg);
 						}
 					}

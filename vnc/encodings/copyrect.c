@@ -4,8 +4,8 @@ void do_copyrectBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t 
 {
 	uint16_t copy_x = 0;
 	uint16_t copy_y = 0;
-	sceNetRecv(c->client_fd, &copy_x, 2, 0);
-	sceNetRecv(c->client_fd, &copy_y, 2, 0);
+	read_from_server(c, &copy_x, 2);
+	read_from_server(c, &copy_y, 2);
 	copy_x = sceNetNtohs(copy_x);
 	copy_y = sceNetNtohs(copy_y);
 
