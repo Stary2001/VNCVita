@@ -28,6 +28,7 @@ extern int read_from_server(vnc_client *c, void* buff, int len);
 #include "encodings/rre.c"
 #include "encodings/hextile.c"
 #include "encodings/draw_rect.c"
+#include "encodings/cursor.c"
 #undef PIXEL
 #undef BPP
 #define PIXEL uint16_t
@@ -37,6 +38,7 @@ extern int read_from_server(vnc_client *c, void* buff, int len);
 #include "encodings/rre.c"
 #include "encodings/hextile.c"
 #include "encodings/draw_rect.c"
+#include "encodings/cursor.c"
 #undef PIXEL
 #undef BPP
 #define PIXEL uint8_t
@@ -46,6 +48,7 @@ extern int read_from_server(vnc_client *c, void* buff, int len);
 #include "encodings/rre.c"
 #include "encodings/hextile.c"
 #include "encodings/draw_rect.c"
+#include "encodings/cursor.c"
 
 void do_copyrect(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
@@ -107,6 +110,22 @@ void do_rre(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
                 break;
                 case 8:
                         do_rre_8(c, x, y, w, h);
+                break;
+        }
+}
+
+void do_cursor(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+{
+        switch(c->format.bpp)
+        {
+                case 32:
+                        do_cursor_32(c, x, y, w, h);
+                break;
+                case 16:
+                        do_cursor_16(c, x, y, w, h);
+                break;
+                case 8:
+                        do_cursor_8(c, x, y, w, h);
                 break;
         }
 }

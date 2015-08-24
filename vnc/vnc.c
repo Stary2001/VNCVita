@@ -357,6 +357,10 @@ void vnc_handle_message(vnc_client *c)
 					}
 					break;
 
+					case -239: // cursor
+						do_cursor(c, x, y, w, h);
+					break;
+
 					default:
 						debugNetPrintf(DEBUG, "unknown encoding %i, exiting.\n", encoding);
 						sceKernelExitProcess(1);
@@ -381,10 +385,10 @@ void vnc_handle_message(vnc_client *c)
 			read_from_server(c, &len, 4);
 			len = sceNetNtohl(len);
 			debugNetPrintf(DEBUG, "clipboard is %i bytes long\n", len);
-			char *buff = malloc(len+1);
-			read_from_server(c, &buff, len);
+			char *buff = (char*)malloc(len+1);
+			read_from_server(c, buff, len);
 			buff[len] = 0;
-			//debugNetPrintf(DEBUG, "clipboard is now '%s'\n", buf);
+			debugNetPrintf(DEBUG, "clipboard is now '%s'\n", buff);
 			free(buff);
 		}
 		break;
@@ -400,12 +404,13 @@ void vnc_send_encodings(vnc_client *c)
 {
 	struct vnc_set_encodings packet = {0};
 	uint16_t num_encodings = 3;
-	int encodings[3];
+	int encodings[4];
 
 	//encodings[0] = 5; // hextile
 	encodings[0] = 2; // rre
 	encodings[1] = 1; // copyrect
 	encodings[2] = 0; // raw
+	encodings[3] = -239; // cursor
 	packet.type = 2;
 	packet.num_encodings = sceNetHtons(num_encodings);
 
