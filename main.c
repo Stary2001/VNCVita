@@ -30,8 +30,8 @@ int main()
 	while (1) {
 		sceCtrlPeekBufferPositive(0, &pad, 1);
 
-                if (pad.buttons & PSP2_CTRL_START) break;
-		if (pad.buttons & PSP2_CTRL_SELECT && !vnc)
+                if (pad.buttons & SCE_CTRL_START) break;
+		if (pad.buttons & SCE_CTRL_SELECT && !vnc)
 		{
 			vnc = vnc_create(VNC_IP, VNC_PORT);
 		}

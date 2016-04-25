@@ -47,7 +47,7 @@ vnc_client * vnc_create(const char *host, int port)
 		return NULL;
 	}
 
-	c->client_fd = sceNetSocket("vnc", PSP2_NET_AF_INET, PSP2_NET_SOCK_STREAM, 0);
+	c->client_fd = sceNetSocket("vnc", SCE_NET_AF_INET, SCE_NET_SOCK_STREAM, 0);
 	if(c->client_fd == -1)
 	{
 		free(c);
@@ -57,9 +57,9 @@ vnc_client * vnc_create(const char *host, int port)
 	
 	SceNetInAddr addr;
 	SceNetSockaddrIn sockaddr;
-	sceNetInetPton(PSP2_NET_AF_INET, host, &addr);
+	sceNetInetPton(SCE_NET_AF_INET, host, &addr);
 	
-	sockaddr.sin_family = PSP2_NET_AF_INET;
+	sockaddr.sin_family = SCE_NET_AF_INET;
         sockaddr.sin_addr = addr;
         sockaddr.sin_port = sceNetHtons(port);
 
@@ -72,11 +72,11 @@ vnc_client * vnc_create(const char *host, int port)
 	}
 	
 	SceNetEpollEvent ev = {0};
-	ev.events = PSP2_NET_EPOLLIN | PSP2_NET_EPOLLHUP;
+	ev.events = SCE_NET_EPOLLIN | SCE_NET_EPOLLHUP;
 	ev.data.fd = c->client_fd;
 
 	int i = 0;
-	if((i = sceNetEpollControl(c->epoll_fd, PSP2_NET_EPOLL_CTL_ADD, c->client_fd, &ev)))
+	if((i = sceNetEpollControl(c->epoll_fd, SCE_NET_EPOLL_CTL_ADD, c->client_fd, &ev)))
 	{
 		debugNetPrintf(DEBUG, "epoll failed return %i %i %x", c->epoll_fd, c->client_fd, i);
 		sceKernelDelayThread(10000000);
@@ -146,7 +146,7 @@ uint32_t vnc_read_pixel_32bpp(vnc_client *c)
 
 void vnc_close(vnc_client *c)
 {
-	sceNetEpollControl(c->epoll_fd, PSP2_NET_EPOLL_CTL_DEL, c->client_fd, NULL);
+	sceNetEpollControl(c->epoll_fd, SCE_NET_EPOLL_CTL_DEL, c->client_fd, NULL);
 	sceNetSocketClose(c->client_fd);
 }
 
@@ -165,7 +165,7 @@ void vnc_handle(vnc_client *c)
 {
 	SceNetEpollEvent ev = {0};
 	sceNetEpollWait(c->epoll_fd, &ev, 1, 1000/60);
-	if(ev.events & PSP2_NET_EPOLLIN)
+	if(ev.events & SCE_NET_EPOLLIN)
 	{
 		switch(c->state)
 		{
