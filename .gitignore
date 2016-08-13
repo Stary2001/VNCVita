@@ -1,3 +1,6 @@
 *.velf
 *.elf
 *.o
+eboot.bin
+*.vpk
+vpktmp

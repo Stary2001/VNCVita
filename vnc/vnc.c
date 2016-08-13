@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include <psp2/net/net.h>
-#include <psp2/kernel/threadmgr.h>
+#include <psp2/kernel/processmgr.h>
 #include <vita2d.h>
 
 #include <debugnet.h>
@@ -54,14 +54,14 @@ vnc_client * vnc_create(const char *host, int port)
 		return NULL;
 	}
 
-	
+
 	SceNetInAddr addr;
 	SceNetSockaddrIn sockaddr;
 	sceNetInetPton(SCE_NET_AF_INET, host, &addr);
-	
+
 	sockaddr.sin_family = SCE_NET_AF_INET;
-        sockaddr.sin_addr = addr;
-        sockaddr.sin_port = sceNetHtons(port);
+    sockaddr.sin_addr = addr;
+    sockaddr.sin_port = sceNetHtons(port);
 
 	if(sceNetConnect(c->client_fd, (SceNetSockaddr *)&sockaddr, sizeof(sockaddr)))
 	{
@@ -70,7 +70,7 @@ vnc_client * vnc_create(const char *host, int port)
 		free(c);
 		return NULL;
 	}
-	
+
 	SceNetEpollEvent ev = {0};
 	ev.events = SCE_NET_EPOLLIN | SCE_NET_EPOLLHUP;
 	ev.data.fd = c->client_fd;
@@ -159,6 +159,7 @@ SceGxmTextureFormat get_gxm_format(struct vnc_pixelformat pix)
 	{
 		return SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ARGB;
 	}
+	return 0;
 }
 
 void vnc_handle(vnc_client *c)
@@ -285,7 +286,9 @@ void vnc_handle(vnc_client *c)
 				strcpy(p.name, c->server_name);
 				free(p.name);
 				c->state = NORMAL;
-				SceGxmTextureFormat gxm_format = get_gxm_format(c->format);
+
+				// SceGxmTextureFormat gxm_format = get_gxm_format(c->format);
+				// todo: ^
 				c->framebuffer_tex = vita2d_create_empty_texture(c->width, c->height);
 				c->framebuffer = (uint32_t*) vita2d_texture_get_datap(c->framebuffer_tex);
 				vnc_send_encodings(c);
@@ -330,7 +333,7 @@ void vnc_handle_message(vnc_client *c)
 				int encoding = 0;
 				read_from_server(c, &encoding, 4);
 				encoding = sceNetNtohl(encoding);
-				debugNetPrintf(DEBUG, "rect %i, %i,%i %ix%i enc %i\n", i, x, y, w, h, encoding);
+				//debugNetPrintf(DEBUG, "rect %i, %i,%i %ix%i enc %i\n", i, x, y, w, h, encoding);
 				switch(encoding)
 				{
 					case 0:
@@ -344,13 +347,13 @@ void vnc_handle_message(vnc_client *c)
 						do_copyrect(c, x, y, w, h);
 					}
 					break;
-					
+
 					case 2: // rre
 					{
 						do_rre(c, x, y, w, h);
 					}
 					break;
-			
+
 					case 5: // hextile
 					{
 						do_hextile(c, x, y, w, h);
@@ -366,7 +369,7 @@ void vnc_handle_message(vnc_client *c)
 						sceKernelExitProcess(1);
 					break;
 				}
-				debugNetPrintf(DEBUG, "rect done\n");
+				//debugNetPrintf(DEBUG, "rect done\n");
 			}
 			c->draw = 1;
 			vnc_send_update_request(c, 1, 0, 0, c->width, c->height);

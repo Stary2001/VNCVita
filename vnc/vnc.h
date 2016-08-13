@@ -86,3 +86,4 @@ void do_raw(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 void do_copyrect(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 void do_rre(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 void do_hextile(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+void do_cursor(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
