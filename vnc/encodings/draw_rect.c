@@ -18,6 +18,6 @@ void draw_rectBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h,
 		{
 			fb[idx++] = colour;
 		}
-		idx += c->width;
+		idx += c->width - w;
 	}
 }

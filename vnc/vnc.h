@@ -53,20 +53,20 @@ struct vnc_set_encodings
 
 struct vnc_client
 {
-        int epoll_fd;
-        int client_fd;
-        int minor;
-        char shared;
+	int epoll_fd;
+	int client_fd;
+	int minor;
+	char shared;
 
-        uint16_t width;
-        uint16_t height;
-        char *server_name;
+	uint16_t width;
+	uint16_t height;
+	char *server_name;
 	struct vnc_pixelformat format;
 
 	vita2d_texture *framebuffer_tex;
 	void *framebuffer;
 	uint8_t draw;
-        vnc_state state;
+	vnc_state state;
 };
 typedef struct vnc_client vnc_client;
 

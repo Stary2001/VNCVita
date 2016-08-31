@@ -2,7 +2,10 @@
 #include <psp2/ctrl.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/sysmodule.h>
+#include <psp2/common_dialog.h>
+#include <psp2/ime_dialog.h>
 #include <psp2/net/net.h>
+#include <psp2/apputil.h>
 
 #include <vita2d.h>
 #include "vnc/vnc.h"
@@ -10,10 +13,88 @@
 #include <stdlib.h>
 #include <debugnet.h>
 
-#define DEBUGGER_IP "192.168.1.244"
+#define DEBUGGER_IP "192.168.0.15"
 #define DEBUGGER_PORT 18194
-#define VNC_IP "192.168.1.244"
-#define VNC_PORT 5900
+
+static uint16_t title[SCE_IME_DIALOG_MAX_TITLE_LENGTH];
+static uint16_t initial_text[SCE_IME_DIALOG_MAX_TEXT_LENGTH];
+static uint16_t input_text[SCE_IME_DIALOG_MAX_TEXT_LENGTH + 1];
+
+#define IME_TEXT SCE_IME_TYPE_BASIC_LATIN
+#define IME_NUM SCE_IME_TYPE_NUMBER
+
+void ascii2utf(uint16_t* dst, const char* src)
+{
+	if(!src || !dst)return;
+	while(*src)*(dst++)=(*src++);
+	*dst=0x00;
+}
+
+void utf2ascii(char* dst, const uint16_t* src)
+{
+	if(!src || !dst)return;
+	while(*src)*(dst++)=(*(src++))&0xFF;
+	*dst=0x00;
+}
+
+int ime(const char *title_ascii, int type, char *inp, int inp_len, int carry)
+{
+	ascii2utf(title, title_ascii);
+	memset(initial_text, 0, SCE_IME_DIALOG_MAX_TEXT_LENGTH*2);
+	memset(input_text, 0, (SCE_IME_DIALOG_MAX_TEXT_LENGTH+1)*2);
+	if(carry) ascii2utf(initial_text, inp);
+
+	SceImeDialogParam param;
+	sceImeDialogParamInit(&param);
+	param.supportedLanguages = 0x0001FFFF;
+	param.languagesForced = SCE_TRUE;
+	param.type = type;
+	param.title = title;
+	param.maxTextLength = inp_len-1;
+	param.initialText = initial_text;
+	param.inputTextBuffer = input_text;
+	sceImeDialogInit(&param);
+
+	while(1)
+	{
+		vita2d_start_drawing();
+		vita2d_end_drawing();
+		vita2d_common_dialog_update();
+		vita2d_wait_rendering_done();
+		vita2d_swap_buffers();
+
+		SceCommonDialogStatus status = sceImeDialogGetStatus();
+		if (status == SCE_COMMON_DIALOG_STATUS_FINISHED)
+		{
+			SceImeDialogResult result;
+			memset(&result, 0, sizeof(SceImeDialogResult));
+			sceImeDialogGetResult(&result);
+
+			if (result.button == SCE_IME_DIALOG_BUTTON_ENTER)
+			{
+				// Yay.
+				utf2ascii(inp, input_text);
+				sceImeDialogTerm();
+				return 0;
+			}
+
+			sceImeDialogTerm();
+			return -1;
+		}
+	}
+}
+
+char vnc_host[256];
+
+int host_entered = 0;
+int vnc_port = 5900;
+
+char disconnected_text[256];
+void update_text()
+{
+	snprintf(disconnected_text, 128, "not connected\npress START to quit, SELECT to connect to %s:%i\npress X to enter VNC host\npress O to enter VNC port", vnc_host, vnc_port);
+}
+
 int main()
 {
 	sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
@@ -26,6 +107,8 @@ int main()
 
 	debugNetInit(DEBUGGER_IP, DEBUGGER_PORT, DEBUG);
 
+	sceAppUtilInit(&(SceAppUtilInitParam){}, &(SceAppUtilBootParam){});
+
 	vita2d_init();
 	vita2d_set_clear_color(RGBA8(0x88, 0x88, 0x88, 0xff));
 
@@ -35,11 +118,14 @@ int main()
 
 	vnc_client *vnc = NULL;
 
-	char disconnected_text[128];
-	snprintf(disconnected_text, 128, "not connected\npress START to quit, SELECT to connect to %s", VNC_IP);
-
 	uint32_t last = 0;
 	uint32_t pressed = 0;
+
+	sceAppUtilInit(&(SceAppUtilInitParam){}, &(SceAppUtilBootParam){});
+	sceCommonDialogSetConfigParam(&(SceCommonDialogConfigParam){});
+
+	strcpy(vnc_host, "(none)");
+	update_text();
 
 	while (1)
 	{
@@ -47,17 +133,46 @@ int main()
 		pressed = (last ^ pad.buttons) & pad.buttons; // xor gives us both edges, we only want the rising edge
 
         if (pressed & SCE_CTRL_START) break;
-		if (pressed & SCE_CTRL_SELECT)
+		if (pressed & SCE_CTRL_SELECT && host_entered)
 		{
 			if(!vnc)
 			{
-				vnc = vnc_create(VNC_IP, VNC_PORT);
+				vnc = vnc_create(vnc_host, vnc_port);
 			}
 			else
 			{
 				vnc_close(vnc);
 				free(vnc);
 				vnc = NULL;
+			}
+		}
+
+		if(pressed & SCE_CTRL_CROSS)
+		{
+			if(ime("Enter hostname", IME_TEXT, vnc_host, 256, strcmp(vnc_host, "(none)") != 0) < 0)
+			{
+				// oh no?
+			}
+			else
+			{
+				update_text();
+				host_entered = 1;
+			}
+		}
+
+		if(pressed & SCE_CTRL_CIRCLE)
+		{
+			char vnc_port_buf[256];
+			itoa(vnc_port, vnc_port_buf, 10);
+
+			if(ime("Enter port", IME_NUM, vnc_port_buf, 256, 1) < 0)
+			{
+				// oh no?
+			}
+			else
+			{
+				vnc_port = atoi(vnc_port_buf);
+				update_text();
 			}
 		}
 
@@ -76,6 +191,8 @@ int main()
 		if(!vnc)
 		{
 			vita2d_font_draw_text(font, 0, 0, RGBA8(0, 0, 0, 0xff), 20, disconnected_text);
+			vita2d_font_draw_text(font, 0, 0, RGBA8(0, 0, 0, 0xff), 20, disconnected_text);
+
 		}
 		vita2d_end_drawing();
 		vita2d_swap_buffers();

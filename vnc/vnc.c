@@ -11,29 +11,30 @@
 #include <debugnet.h>
 
 #define BLOCK_SIZE 1024
+
 int read_from_server(vnc_client *c, void* buff, int len)
 {
-        int read_len = 0;
-        int ret = 0;
-	debugNetPrintf(DEBUG, "going to read %i bytes\n", len);
-        while(len != 0)
-        {
-                ret = sceNetRecv(c->client_fd, (char*)buff + read_len, len < BLOCK_SIZE ? len : BLOCK_SIZE, 0);
-                if(ret < 0)
-                {
-                        debugNetPrintf(DEBUG, "read failed, %d!", ret); // rip.
+	int read_len = 0;
+	int ret = 0;
+
+	while(len != 0)
+	{
+		ret = sceNetRecv(c->client_fd, (char*)buff + read_len, len < BLOCK_SIZE ? len : BLOCK_SIZE, 0);
+		if(ret < 0)
+		{
+			debugNetPrintf(DEBUG, "read failed, %d!", ret); // rip.
 			sceKernelDelayThread(5000000);
-                        vnc_close(c);
+			vnc_close(c);
 			return -1;
-                }
-                read_len += ret;
-                len -= ret;
-        }
-	debugNetPrintf(DEBUG, "finished, read %i bytes\n", read_len);
+		}
+		read_len += ret;
+		len -= ret;
+	}
+
 	return read_len;
 }
 
-vnc_client * vnc_create(const char *host, int port)
+vnc_client *vnc_create(const char *host, int port)
 {
 	vnc_client *c = (vnc_client*)malloc(sizeof(vnc_client));
 	c->state = HANDSHAKE;
@@ -54,14 +55,13 @@ vnc_client * vnc_create(const char *host, int port)
 		return NULL;
 	}
 
-
 	SceNetInAddr addr;
 	SceNetSockaddrIn sockaddr;
 	sceNetInetPton(SCE_NET_AF_INET, host, &addr);
 
 	sockaddr.sin_family = SCE_NET_AF_INET;
-    sockaddr.sin_addr = addr;
-    sockaddr.sin_port = sceNetHtons(port);
+	sockaddr.sin_addr = addr;
+	sockaddr.sin_port = sceNetHtons(port);
 
 	if(sceNetConnect(c->client_fd, (SceNetSockaddr *)&sockaddr, sizeof(sockaddr)))
 	{
@@ -84,6 +84,7 @@ vnc_client * vnc_create(const char *host, int port)
 		free(c);
 		return NULL;
 	}
+
 	return c;
 }
 
@@ -133,8 +134,8 @@ uint8_t vnc_read_pixel_8bpp(vnc_client *c)
 uint16_t vnc_read_pixel_16bpp(vnc_client *c)
 {
 	uint16_t x;
-        read_from_server(c, &x, 2);
-        return x;
+		read_from_server(c, &x, 2);
+		return x;
 }
 
 uint32_t vnc_read_pixel_32bpp(vnc_client *c)
@@ -243,22 +244,22 @@ void vnc_handle(vnc_client *c)
 				else // rfb 3.3
 				{
 					char type;
-                                        read_from_server(c, &type, 1);
-                                        if(type == 0)
-                                        {
-                                                char *r = vnc_read_reason(c);
-                                                debugNetPrintf(DEBUG, r);
-                                                free(r);
-                                                vnc_close(c);
-                                                return;
-                                        }
+					read_from_server(c, &type, 1);
+					if(type == 0)
+					{
+							char *r = vnc_read_reason(c);
+							debugNetPrintf(DEBUG, r);
+							free(r);
+							vnc_close(c);
+							return;
+					}
 				}
 			}
 			break;
 			case AUTH_REPLY:
 			{
 				uint32_t status;
-                                read_from_server(c, &status, 4);
+								read_from_server(c, &status, 4);
 				status = sceNetNtohl(status);
 				if(status == 1)
 				{
@@ -266,10 +267,10 @@ void vnc_handle(vnc_client *c)
 					{
 						char *r = vnc_read_reason(c);
 						debugNetPrintf(DEBUG, r);
-	                                        free(r);
+											free(r);
 					}
-                                        vnc_close(c);
-                                        return;
+										vnc_close(c);
+										return;
 				}
 				c->state = INIT;
 				sceNetSend(c->client_fd, &c->shared, 1, 0);
@@ -295,6 +296,7 @@ void vnc_handle(vnc_client *c)
 				vnc_send_update_request(c, 0, 0, 0, c->width, c->height);
 			}
 			break;
+
 			case NORMAL:
 				vnc_handle_message(c);
 			break;
@@ -316,7 +318,8 @@ void vnc_handle_message(vnc_client *c)
 			uint16_t num_rects = 0;
 			read_from_server(c, &num_rects, 2);
 			num_rects = sceNetNtohs(num_rects);
-			debugNetPrintf(DEBUG, "!!!!fbupdate with %i rects!!!!\n", num_rects);
+
+			//debugNetPrintf(DEBUG, "!!!!fbupdate with %i rects!!!!\n", num_rects);
 			int i = 0;
 			for(; i < num_rects; i++)
 			{
@@ -334,6 +337,7 @@ void vnc_handle_message(vnc_client *c)
 				read_from_server(c, &encoding, 4);
 				encoding = sceNetNtohl(encoding);
 				//debugNetPrintf(DEBUG, "rect %i, %i,%i %ix%i enc %i\n", i, x, y, w, h, encoding);
+
 				switch(encoding)
 				{
 					case 0:
@@ -369,7 +373,6 @@ void vnc_handle_message(vnc_client *c)
 						sceKernelExitProcess(1);
 					break;
 				}
-				//debugNetPrintf(DEBUG, "rect done\n");
 			}
 			c->draw = 1;
 			vnc_send_update_request(c, 1, 0, 0, c->width, c->height);
@@ -406,14 +409,14 @@ void vnc_handle_message(vnc_client *c)
 void vnc_send_encodings(vnc_client *c)
 {
 	struct vnc_set_encodings packet = {0};
-	uint16_t num_encodings = 3;
-	int encodings[4];
+	uint16_t num_encodings = 5;
+	int encodings[5];
 
-	//encodings[0] = 5; // hextile
-	encodings[0] = 2; // rre
-	encodings[1] = 1; // copyrect
-	encodings[2] = 0; // raw
-	encodings[3] = -239; // cursor
+	encodings[0] = 5; // hextile
+	encodings[1] = 2; // rre
+	encodings[2] = 1; // copyrect
+	encodings[3] = 0; // raw
+	encodings[4] = -239; // cursor
 	packet.type = 2;
 	packet.num_encodings = sceNetHtons(num_encodings);
 

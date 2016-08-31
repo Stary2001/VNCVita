@@ -2,7 +2,7 @@ TARGET = VNCVita
 TITLE_ID = STAR00002
 OBJS   = main.o vnc/vnc.o vnc/encodings.o
 
-LIBS = -lvita2d -lfreetype -lpng -lz -ldebugnet -lSceTouch_stub -lSceDisplay_stub -lSceGxm_stub -lSceCtrl_stub -lSceNet_stub -lSceNetCtl_stub -lSceSysmodule_stub -lm
+LIBS = -lvita2d -lfreetype -lpng -lz -ldebugnet -lSceTouch_stub -lSceDisplay_stub -lSceGxm_stub -lSceCtrl_stub -lSceNet_stub -lSceNetCtl_stub -lSceSysmodule_stub -lSceAppUtil_stub -lSceCommonDialog_stub -lm
 
 PREFIX = $(VITASDK)/bin/arm-vita-eabi
 DB = /home/stary2001/vita-headers/db.json
