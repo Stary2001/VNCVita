@@ -12,7 +12,7 @@
 
 #define BLOCK_SIZE 1024
 
-int read_from_server(vnc_client *c, void* buff, int len)
+int read_chunked(vnc_client *c, void* buff, int len)
 {
 	int read_len = 0;
 	int ret = 0;
@@ -34,9 +34,66 @@ int read_from_server(vnc_client *c, void* buff, int len)
 	return read_len;
 }
 
+int read_from_server(vnc_client *c, void* buff, int len)
+{
+	int buffered = c->buffer_front - c->buffer_back;
+	if(len <= buffered)
+	{
+		memcpy(buff, c->buffer + c->buffer_back, len);
+		c->buffer_back += len;
+	}
+	else // Buffer underflow!
+	{
+		if(buffered != 0)
+		{
+			memmove(c->buffer, c->buffer + c->buffer_back, buffered);
+			c->buffer_front = buffered;
+			c->buffer_back = 0;
+		}
+		else
+		{
+			c->buffer_front = 0;
+			c->buffer_back = 0;
+		}
+
+		int r = sceNetRecv(c->client_fd, c->buffer + c->buffer_front, VNC_BUFFER_SIZE - c->buffer_front, 0); // Expand at the front.
+		if(r < 0)
+		{
+			sceKernelDelayThread(5000000);
+			sceKernelExitProcess(0);
+		}
+
+		if(r == len) // we got EXACTLY the amount we needed. we wasted the buffer. :(
+		{
+			// this means we don't update either position, as the buffer 'didnt change'
+			debugNetPrintf(DEBUG, "success, exact amount!\n", len);
+			memcpy(buff, c->buffer + c->buffer_front, len);
+			return r;
+		}
+		else if(r + buffered >= len)
+		{
+			memcpy(buff, c->buffer + c->buffer_back, len);
+			c->buffer_back += len;
+			c->buffer_front += r;
+		}
+		else
+		{
+			debugNetPrintf(DEBUG, "underflow failed (need %i have %i)!\n", len, r + buffered);
+			sceKernelDelayThread(5000000);
+			sceKernelExitProcess(0);
+		}
+	}
+
+	return 0;
+}
+
 vnc_client *vnc_create(const char *host, int port)
 {
 	vnc_client *c = (vnc_client*)malloc(sizeof(vnc_client));
+	c->buffer = malloc(VNC_BUFFER_SIZE);
+	c->buffer_front = 0;
+	c->buffer_back = 0;
+
 	c->state = HANDSHAKE;
 	c->shared = 1;
 	c->draw = 0;
@@ -266,11 +323,11 @@ void vnc_handle(vnc_client *c)
 					read_from_server(c, &type, 1);
 					if(type == 0)
 					{
-							char *r = vnc_read_reason(c);
-							debugNetPrintf(DEBUG, r);
-							free(r);
-							vnc_close(c);
-							return;
+						char *r = vnc_read_reason(c);
+						debugNetPrintf(DEBUG, r);
+						free(r);
+						vnc_close(c);
+						return;
 					}
 				}
 			}

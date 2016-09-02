@@ -51,6 +51,8 @@ struct vnc_set_encodings
 	uint16_t num_encodings;
 };
 
+#define VNC_BUFFER_SIZE 0x100000
+
 struct vnc_client
 {
 	int epoll_fd;
@@ -67,6 +69,10 @@ struct vnc_client
 	void *framebuffer;
 	uint8_t draw;
 	vnc_state state;
+
+	int buffer_front;
+	int buffer_back;
+	char *buffer;
 };
 typedef struct vnc_client vnc_client;
 
