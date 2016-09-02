@@ -158,8 +158,27 @@ SceGxmTextureFormat get_gxm_format(struct vnc_pixelformat pix)
 	if(!pix.true_colour)	return 0;
 	if(pix.bpp == 32)
 	{
-		return SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ARGB;
+		if(pix.blue_shift == 0)
+		{
+			return SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ARGB;
+		}
+		else if(pix.red_shift == 0)
+		{
+			return SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR;
+		}
 	}
+	else if(pix.bpp == 16)
+	{
+		if(pix.blue_shift == 0)
+		{
+			return SCE_GXM_COLOR_FORMAT_U5U6U5_RGB;
+		}
+		else if(pix.red_shift == 0)
+		{
+			return SCE_GXM_COLOR_FORMAT_U5U6U5_BGR;
+		}
+	}
+
 	return 0;
 }
 
@@ -288,9 +307,8 @@ void vnc_handle(vnc_client *c)
 				free(p.name);
 				c->state = NORMAL;
 
-				// SceGxmTextureFormat gxm_format = get_gxm_format(c->format);
-				// todo: ^
-				c->framebuffer_tex = vita2d_create_empty_texture(c->width, c->height);
+				SceGxmTextureFormat gxm_format = get_gxm_format(c->format);
+				c->framebuffer_tex = vita2d_create_empty_texture_format(c->width, c->height, gxm_format);
 				c->framebuffer = (uint32_t*) vita2d_texture_get_datap(c->framebuffer_tex);
 				vnc_send_encodings(c);
 				vnc_send_update_request(c, 0, 0, 0, c->width, c->height);
@@ -409,14 +427,14 @@ void vnc_handle_message(vnc_client *c)
 void vnc_send_encodings(vnc_client *c)
 {
 	struct vnc_set_encodings packet = {0};
-	uint16_t num_encodings = 5;
-	int encodings[5];
+	uint16_t num_encodings = 4;
+	int encodings[4];
 
 	encodings[0] = 5; // hextile
 	encodings[1] = 2; // rre
 	encodings[2] = 1; // copyrect
 	encodings[3] = 0; // raw
-	encodings[4] = -239; // cursor
+	//encodings[4] = -239; // cursor
 	packet.type = 2;
 	packet.num_encodings = sceNetHtons(num_encodings);
 
