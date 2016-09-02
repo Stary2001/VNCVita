@@ -11,10 +11,10 @@
 #include "vnc/vnc.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <debugnet.h>
 
-#define DEBUGGER_IP "192.168.0.15"
-#define DEBUGGER_PORT 18194
+#ifdef DEBUGGER_IP
+#include <debugnet.h>
+#endif
 
 static uint16_t title[SCE_IME_DIALOG_MAX_TITLE_LENGTH];
 static uint16_t initial_text[SCE_IME_DIALOG_MAX_TEXT_LENGTH];
@@ -105,7 +105,9 @@ int main()
     netInitParam.flags = 0;
     sceNetInit(&netInitParam);
 
+#ifdef DEBUGGER_IP
 	debugNetInit(DEBUGGER_IP, DEBUGGER_PORT, DEBUG);
+#endif
 
 	sceAppUtilInit(&(SceAppUtilInitParam){}, &(SceAppUtilBootParam){});
 
@@ -201,7 +203,9 @@ int main()
 	}
 	vita2d_fini();
 
+#ifdef DEBUGGER_IP
 	debugNetFinish();
+#endif
 	sceKernelExitProcess(0);
 	return 0;
 }

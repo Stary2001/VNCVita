@@ -11,7 +11,11 @@ CC      = $(PREFIX)-gcc
 CXX	= $(PREFIX)-g++
 LD	= $(PREFIX)-ld
 
-CFLAGS  = -Wl,-q -Wall -O3 -I$(VITASDK)/include -L$(VITASDK)/lib
+DEBUGGER_IP ?= $(shell ip addr list `ip route | grep default | grep -oP 'dev \K[a-z0-9]* '` | grep -oP 'inet \K[0-9\.]*')
+DEBUGGER_PORT = 18194
+DEFS = -DDEBUGGER_IP=\"$(DEBUGGER_IP)\" -DDEBUGGER_PORT=$(DEBUGGER_PORT)
+
+CFLAGS = -Wl,-q -Wall -O3 -I$(VITASDK)/include -L$(VITASDK)/lib $(DEFS)
 
 all: $(TARGET).vpk
 

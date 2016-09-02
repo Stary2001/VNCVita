@@ -8,7 +8,13 @@
 #include <psp2/kernel/processmgr.h>
 #include <vita2d.h>
 
+#ifdef DEBUGGER_IP
 #include <debugnet.h>
+#define debugOut(...) \
+    debugNetPrintf(DEBUG, __VA_ARGS__);
+#else
+#define debugOut(...)
+#endif
 
 #define BLOCK_SIZE 1024
 
@@ -22,7 +28,7 @@ int read_chunked(vnc_client *c, void* buff, int len)
 		ret = sceNetRecv(c->client_fd, (char*)buff + read_len, len < BLOCK_SIZE ? len : BLOCK_SIZE, 0);
 		if(ret < 0)
 		{
-			debugNetPrintf(DEBUG, "read failed, %d!", ret); // rip.
+			debugOut("read failed, %d!", ret); // rip.
 			sceKernelDelayThread(5000000);
 			vnc_close(c);
 			return -1;
@@ -66,7 +72,7 @@ int read_from_server(vnc_client *c, void* buff, int len)
 		if(r == len) // we got EXACTLY the amount we needed. we wasted the buffer. :(
 		{
 			// this means we don't update either position, as the buffer 'didnt change'
-			debugNetPrintf(DEBUG, "success, exact amount!\n", len);
+			debugOut("success, exact amount!\n", len);
 			memcpy(buff, c->buffer + c->buffer_front, len);
 			return r;
 		}
@@ -78,7 +84,7 @@ int read_from_server(vnc_client *c, void* buff, int len)
 		}
 		else
 		{
-			debugNetPrintf(DEBUG, "underflow failed (need %i have %i)!\n", len, r + buffered);
+			debugOut("underflow failed (need %i have %i)!\n", len, r + buffered);
 			sceKernelDelayThread(5000000);
 			sceKernelExitProcess(0);
 		}
@@ -122,7 +128,7 @@ vnc_client *vnc_create(const char *host, int port)
 
 	if(sceNetConnect(c->client_fd, (SceNetSockaddr *)&sockaddr, sizeof(sockaddr)))
 	{
-		debugNetPrintf(DEBUG, "connect failed\n");
+		debugOut("connect failed\n");
 		sceNetSocketClose(c->client_fd);
 		free(c);
 		return NULL;
@@ -135,7 +141,7 @@ vnc_client *vnc_create(const char *host, int port)
 	int i = 0;
 	if((i = sceNetEpollControl(c->epoll_fd, SCE_NET_EPOLL_CTL_ADD, c->client_fd, &ev)))
 	{
-		debugNetPrintf(DEBUG, "epoll failed return %i %i %x", c->epoll_fd, c->client_fd, i);
+		debugOut("epoll failed return %i %i %x", c->epoll_fd, c->client_fd, i);
 		sceKernelDelayThread(10000000);
 		sceNetSocketClose(c->client_fd);
 		free(c);
@@ -278,7 +284,7 @@ void vnc_handle(vnc_client *c)
 					if(num_types == 0)
 					{
 						char *r = vnc_read_reason(c);
-						debugNetPrintf(DEBUG, "%s", r);
+						debugOut("%s", r);
 						free(r);
 						vnc_close(c);
 						return;
@@ -324,7 +330,7 @@ void vnc_handle(vnc_client *c)
 					if(type == 0)
 					{
 						char *r = vnc_read_reason(c);
-						debugNetPrintf(DEBUG, r);
+						debugOut(r);
 						free(r);
 						vnc_close(c);
 						return;
@@ -342,7 +348,7 @@ void vnc_handle(vnc_client *c)
 					if(c->minor == 8)
 					{
 						char *r = vnc_read_reason(c);
-						debugNetPrintf(DEBUG, r);
+						debugOut(r);
 											free(r);
 					}
 										vnc_close(c);
@@ -383,7 +389,7 @@ void vnc_handle_message(vnc_client *c)
 {
 	char message_type = -1;
 	read_from_server(c, &message_type, 1);
-	debugNetPrintf(DEBUG, "message type %i\n", message_type);
+	debugOut("message type %i\n", message_type);
 	switch(message_type)
 	{
 		case 0: // framebuffer update
@@ -394,7 +400,7 @@ void vnc_handle_message(vnc_client *c)
 			read_from_server(c, &num_rects, 2);
 			num_rects = sceNetNtohs(num_rects);
 
-			//debugNetPrintf(DEBUG, "!!!!fbupdate with %i rects!!!!\n", num_rects);
+			//debugOut("!!!!fbupdate with %i rects!!!!\n", num_rects);
 			int i = 0;
 			for(; i < num_rects; i++)
 			{
@@ -411,7 +417,7 @@ void vnc_handle_message(vnc_client *c)
 				int encoding = 0;
 				read_from_server(c, &encoding, 4);
 				encoding = sceNetNtohl(encoding);
-				//debugNetPrintf(DEBUG, "rect %i, %i,%i %ix%i enc %i\n", i, x, y, w, h, encoding);
+				//debugOut("rect %i, %i,%i %ix%i enc %i\n", i, x, y, w, h, encoding);
 
 				switch(encoding)
 				{
@@ -444,7 +450,7 @@ void vnc_handle_message(vnc_client *c)
 					break;
 
 					default:
-						debugNetPrintf(DEBUG, "unknown encoding %i, exiting.\n", encoding);
+						debugOut("unknown encoding %i, exiting.\n", encoding);
 						sceKernelExitProcess(1);
 					break;
 				}
@@ -455,7 +461,7 @@ void vnc_handle_message(vnc_client *c)
 		break;
 
 		case 2: // bell
-			debugNetPrintf(DEBUG, "vnc bell\x07\n");
+			debugOut("vnc bell\x07\n");
 		break;
 
 		case 3: // cut text
@@ -465,17 +471,17 @@ void vnc_handle_message(vnc_client *c)
 			int len = 0;
 			read_from_server(c, &len, 4);
 			len = sceNetNtohl(len);
-			debugNetPrintf(DEBUG, "clipboard is %i bytes long\n", len);
+			debugOut("clipboard is %i bytes long\n", len);
 			char *buff = (char*)malloc(len+1);
 			read_from_server(c, buff, len);
 			buff[len] = 0;
-			debugNetPrintf(DEBUG, "clipboard is now '%s'\n", buff);
+			debugOut("clipboard is now '%s'\n", buff);
 			free(buff);
 		}
 		break;
 
 		default:
-			debugNetPrintf(DEBUG, "unknown message type %i, exiting\n", message_type);
+			debugOut("unknown message type %i, exiting\n", message_type);
 			sceKernelExitProcess(1);
 		break;
 	}
