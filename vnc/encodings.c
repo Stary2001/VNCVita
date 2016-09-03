@@ -50,83 +50,98 @@ extern int read_from_server(vnc_client *c, void* buff, int len);
 #include "encodings/draw_rect.c"
 #include "encodings/cursor.c"
 
-void do_copyrect(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+int do_copyrect(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-        switch(c->format.bpp)
-        {
-                case 32:
-                        do_copyrect_32(c, x, y, w, h);
-                break;
-                case 16:
-                        do_copyrect_16(c, x, y, w, h);
-                break;
-                case 8:
-                        do_copyrect_8(c, x, y, w, h);
-                break;
-        }
+	switch(c->format.bpp)
+	{
+		case 32:
+			return do_copyrect_32(c, x, y, w, h);
+		break;
+		case 16:
+			return do_copyrect_16(c, x, y, w, h);
+		break;
+		case 8:
+			return do_copyrect_8(c, x, y, w, h);
+		break;
+		default:
+			return -1;
+		break;
+	}
 }
 
-void do_hextile(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+int do_hextile(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-        switch(c->format.bpp)
-        {
-                case 32:
-                        do_hextile_32(c, x, y, w, h);
-                break;
-                case 16:
-                        do_hextile_16(c, x, y, w, h);
-                break;
-                case 8:
-                        do_hextile_8(c, x, y, w, h);
-                break;
-        }
+	switch(c->format.bpp)
+	{
+		case 32:
+			return do_hextile_32(c, x, y, w, h);
+		break;
+		case 16:
+			return do_hextile_16(c, x, y, w, h);
+		break;
+		case 8:
+			return do_hextile_8(c, x, y, w, h);
+		break;
+		default:
+			return -1;
+		break;
+	}
 }
 
-void do_raw(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+int do_raw(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-        switch(c->format.bpp)
-        {
-                case 32:
-                        do_raw_32(c, x, y, w, h);
-                break;
-                case 16:
-                        do_raw_16(c, x, y, w, h);
-                break;
-                case 8:
-                        do_raw_8(c, x, y, w, h);
-                break;
-        }
+	switch(c->format.bpp)
+	{
+		case 32:
+			return do_raw_32(c, x, y, w, h);
+		break;
+		case 16:
+			return do_raw_16(c, x, y, w, h);
+		break;
+		case 8:
+			return do_raw_8(c, x, y, w, h);
+		break;
+		default:
+			return -1;
+		break;
+	}
 }
 
-void do_rre(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+int do_rre(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-        switch(c->format.bpp)
-        {
-                case 32:
-                        do_rre_32(c, x, y, w, h);
-                break;
-                case 16:
-                        do_rre_16(c, x, y, w, h);
-                break;
-                case 8:
-                        do_rre_8(c, x, y, w, h);
-                break;
-        }
+	switch(c->format.bpp)
+	{
+		case 32:
+			return do_rre_32(c, x, y, w, h);
+		break;
+		case 16:
+			return do_rre_16(c, x, y, w, h);
+		break;
+		case 8:
+			return do_rre_8(c, x, y, w, h);
+		break;
+
+		default:
+			return -1;
+		break;
+	}
 }
 
-void do_cursor(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+int do_cursor(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-        switch(c->format.bpp)
-        {
-                case 32:
-                        do_cursor_32(c, x, y, w, h);
-                break;
-                case 16:
-                        do_cursor_16(c, x, y, w, h);
-                break;
-                case 8:
-                        do_cursor_8(c, x, y, w, h);
-                break;
-        }
+	switch(c->format.bpp)
+	{
+		case 32:
+			return do_cursor_32(c, x, y, w, h);
+		break;
+		case 16:
+			return do_cursor_16(c, x, y, w, h);
+		break;
+		case 8:
+			return do_cursor_8(c, x, y, w, h);
+		break;
+		default:
+			return -1;
+		break;
+	}
 }
-

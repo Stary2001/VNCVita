@@ -1,25 +1,25 @@
 #define do_rawBPP concat(do_raw_, BPP)
 
-void do_rawBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+int do_rawBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-	 uint32_t len = w * h * BYTES_PER_PIXEL;
-         PIXEL *pixels = (PIXEL*) malloc(len);
-         int ret = read_from_server(c, pixels, len);
-         if(ret == -1)
-         {
-                free(pixels);
-         	return;
-         }
+	uint32_t len = w * h * BYTES_PER_PIXEL;
+	PIXEL *pixels = (PIXEL*) malloc(len);
+	int ret = read_from_server(c, pixels, len);
+	if(ret < 0)
+	{
+		free(pixels);
+		return -1;
+	}
 
-        int i = 0;
+	int i = 0;
 	int j = 0;
 	int fb_index = x + y * c->width;
 	int pix_index = 0;
 
 	PIXEL *fb = (PIXEL*) c->framebuffer;
 
-        for(; i < h; i++)
-        {
+	for(; i < h; i++)
+	{
 		j = 0;
 		for(; j < w; j++)
 		{
@@ -30,6 +30,8 @@ void do_rawBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 		}
 		fb_index += c->width;
 		pix_index += w;
-        }
+	}
 	free(pixels);
+
+	return 0;
 }

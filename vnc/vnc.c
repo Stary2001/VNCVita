@@ -42,6 +42,8 @@ int read_chunked(vnc_client *c, void* buff, int len)
 
 int read_from_server(vnc_client *c, void* buff, int len)
 {
+	//debugOut("reading %i!\n", len);
+
 	int buffered = c->buffer_front - c->buffer_back;
 	if(len <= buffered)
 	{
@@ -69,12 +71,17 @@ int read_from_server(vnc_client *c, void* buff, int len)
 			sceKernelExitProcess(0);
 		}
 
+		if(r == 0) // Server is gone.
+		{
+			return -1;
+		}
+
 		if(r == len) // we got EXACTLY the amount we needed. we wasted the buffer. :(
 		{
 			// this means we don't update either position, as the buffer 'didnt change'
 			debugOut("success, exact amount!\n", len);
 			memcpy(buff, c->buffer + c->buffer_front, len);
-			return r;
+			return len;
 		}
 		else if(r + buffered >= len)
 		{
@@ -90,7 +97,7 @@ int read_from_server(vnc_client *c, void* buff, int len)
 		}
 	}
 
-	return 0;
+	return len;
 }
 
 vnc_client *vnc_create(const char *host, int port)
@@ -157,55 +164,51 @@ char* vnc_read_reason(vnc_client *c)
 	read_from_server(c, &len, 4);
 	len = sceNetNtohl(len);
 	char *buf = (char*) malloc(len);
-	read_from_server(c, &buf, len);
+	if(read_from_server(c, &buf, len) < 0) { return NULL; }
 	return buf;
 }
 
-struct vnc_pixelformat vnc_read_pixel_format(vnc_client *c)
+int vnc_read_pixel_format(vnc_client *c, struct vnc_pixelformat *pix)
 {
-	struct vnc_pixelformat p;
-	read_from_server(c, &p, sizeof(p));
-	p.red_max = sceNetNtohs(p.red_max);
-	p.green_max = sceNetNtohs(p.green_max);
-	p.blue_max = sceNetNtohs(p.blue_max);
-	return p;
+	if(read_from_server(c, pix, sizeof(struct vnc_pixelformat)) < 0) { return -1; }
+	pix->red_max = sceNetNtohs(pix->red_max);
+	pix->green_max = sceNetNtohs(pix->green_max);
+	pix->blue_max = sceNetNtohs(pix->blue_max);
+	return 0;
 }
 
-struct vnc_serverinit vnc_read_serverinit(vnc_client *c)
+int vnc_read_serverinit(vnc_client *c, struct vnc_serverinit *init)
 {
-	struct vnc_serverinit packet;
-	read_from_server(c, &packet.width, 2);
-	read_from_server(c, &packet.height, 2);
-	packet.width = sceNetNtohs(packet.width);
-	packet.height = sceNetNtohs(packet.height);
-	packet.format = vnc_read_pixel_format(c);
-	read_from_server(c, &packet.name_len, 4);
-	packet.name_len = sceNetNtohl(packet.name_len);
-	packet.name = (char*)malloc(packet.name_len + 1);
-	read_from_server(c, packet.name, packet.name_len);
-	packet.name[packet.name_len] = 0;
-	return packet;
+	if(read_from_server(c, &init->width, 2) < 0) { return -1; }
+	if(read_from_server(c, &init->height, 2) < 0) { return -1; }
+	init->width = sceNetNtohs(init->width);
+	init->height = sceNetNtohs(init->height);
+	if(vnc_read_pixel_format(c, &init->format) < 0) { return -1; }
+	if(read_from_server(c, &init->name_len, 4) < 0) { return -1; }
+	init->name_len = sceNetNtohl(init->name_len);
+	init->name = (char*)malloc(init->name_len + 1);
+	if(read_from_server(c, init->name, init->name_len) < 0) { free(init->name); return -1; }
+	init->name[init->name_len] = 0;
+
+	return 0;
 }
 
-uint8_t vnc_read_pixel_8bpp(vnc_client *c)
+int vnc_read_pixel_8bpp(vnc_client *c, uint8_t *pix)
 {
-	uint8_t x;
-	read_from_server(c, &x, 1);
-	return x;
+	if(read_from_server(c, pix, 1) < 0) { return -1; }
+	return 0;
 }
 
-uint16_t vnc_read_pixel_16bpp(vnc_client *c)
+int vnc_read_pixel_16bpp(vnc_client *c, uint16_t *pix)
 {
-	uint16_t x;
-		read_from_server(c, &x, 2);
-		return x;
+	if(read_from_server(c, pix, 2) < 0) { return -1; } 
+	return 0;
 }
 
-uint32_t vnc_read_pixel_32bpp(vnc_client *c)
+int vnc_read_pixel_32bpp(vnc_client *c, uint32_t *pix)
 {
-	uint32_t x;
-	read_from_server(c, &x, 4);
-	return x;
+	if(read_from_server(c, pix, 4) < 0) { return -1; }
+	return 0;
 }
 
 void vnc_close(vnc_client *c)
@@ -214,7 +217,7 @@ void vnc_close(vnc_client *c)
 	sceNetSocketClose(c->client_fd);
 }
 
-void vnc_handle_message(vnc_client *c);
+int vnc_handle_message(vnc_client *c);
 
 SceGxmTextureFormat get_gxm_format(struct vnc_pixelformat pix)
 {
@@ -245,7 +248,7 @@ SceGxmTextureFormat get_gxm_format(struct vnc_pixelformat pix)
 	return 0;
 }
 
-void vnc_handle(vnc_client *c)
+int vnc_handle(vnc_client *c)
 {
 	SceNetEpollEvent ev = {0};
 	sceNetEpollWait(c->epoll_fd, &ev, 1, 1000/60);
@@ -256,11 +259,14 @@ void vnc_handle(vnc_client *c)
 			case HANDSHAKE:
 			{
 				char proto[13];
-				read_from_server(c, proto, 12);
+				if(read_from_server(c, proto, 12) < 0) { goto bail; }
 				proto[12] = 0;
 				int major, minor;
 				major=minor=0;
 				sscanf(proto, "RFB 00%d.00%d", &major, &minor);
+
+				debugNetPrintf(DEBUG, "got rfb %i %i", major, minor);
+
 				if(major == 3)
 				{
 					// yay.
@@ -270,8 +276,7 @@ void vnc_handle(vnc_client *c)
 				}
 				else
 				{
-					vnc_close(c);
-					return;
+					goto bail;
 				}
 			}
 			break;
@@ -280,19 +285,21 @@ void vnc_handle(vnc_client *c)
 				if(c->minor > 7) // rfb 3.7+
 				{
 					char num_types;
-					read_from_server(c, &num_types, 1);
+					if(read_from_server(c, &num_types, 1) < 0) { goto bail; }
 					if(num_types == 0)
 					{
 						char *r = vnc_read_reason(c);
-						debugOut("%s", r);
-						free(r);
-						vnc_close(c);
-						return;
+						if(r != NULL)
+						{
+							debugOut("%s", r);
+							free(r);
+						}
+						goto bail;
 					}
 					else
 					{
 						char *types = (char*)malloc(num_types);
-						read_from_server(c, types, num_types);
+						if(read_from_server(c, types, num_types) < 0) { free(types); goto bail; }
 						char selected = 0;
 						int i = 0;
 						for(; i < num_types; i++)
@@ -303,10 +310,10 @@ void vnc_handle(vnc_client *c)
 								break;
 							}
 						}
+
 						if(selected == 0)
 						{
-							vnc_close(c);
-							return;
+							goto bail;
 						}
 						else
 						{
@@ -326,14 +333,13 @@ void vnc_handle(vnc_client *c)
 				else // rfb 3.3
 				{
 					char type;
-					read_from_server(c, &type, 1);
+					if(read_from_server(c, &type, 1) < 0) { goto bail; }
 					if(type == 0)
 					{
 						char *r = vnc_read_reason(c);
 						debugOut(r);
 						free(r);
-						vnc_close(c);
-						return;
+						goto bail;
 					}
 				}
 			}
@@ -341,18 +347,20 @@ void vnc_handle(vnc_client *c)
 			case AUTH_REPLY:
 			{
 				uint32_t status;
-								read_from_server(c, &status, 4);
+				if(read_from_server(c, &status, 4) < 0) { goto bail; }
 				status = sceNetNtohl(status);
 				if(status == 1)
 				{
 					if(c->minor == 8)
 					{
 						char *r = vnc_read_reason(c);
-						debugOut(r);
-											free(r);
+						if(r != NULL)
+						{
+							debugOut(r);
+							free(r);
+						}
 					}
-										vnc_close(c);
-										return;
+					goto bail;
 				}
 				c->state = INIT;
 				sceNetSend(c->client_fd, &c->shared, 1, 0);
@@ -361,7 +369,8 @@ void vnc_handle(vnc_client *c)
 
 			case INIT:
 			{
-				struct vnc_serverinit p = vnc_read_serverinit(c);
+				struct vnc_serverinit p;
+				if(vnc_read_serverinit(c, &p) < 0) { goto bail; }
 				c->width = p.width;
 				c->height = p.height;
 				c->format = p.format;
@@ -383,70 +392,80 @@ void vnc_handle(vnc_client *c)
 			break;
 		}
 	}
+
+	return 0;
+
+	bail:
+	vnc_close(c);
+	return -1;
 }
 
-void vnc_handle_message(vnc_client *c)
+int vnc_handle_message(vnc_client *c)
 {
 	char message_type = -1;
-	read_from_server(c, &message_type, 1);
+	if(read_from_server(c, &message_type, 1) < 0) { return -1; }
 	debugOut("message type %i\n", message_type);
 	switch(message_type)
 	{
 		case 0: // framebuffer update
 		{
 			char padding;
-			read_from_server(c, &padding, 1);
+			if(read_from_server(c, &padding, 1) < 0) { return -1; }
 			uint16_t num_rects = 0;
-			read_from_server(c, &num_rects, 2);
+			if(read_from_server(c, &num_rects, 2) < 0) { return -1; }
 			num_rects = sceNetNtohs(num_rects);
 
-			//debugOut("!!!!fbupdate with %i rects!!!!\n", num_rects);
+			debugOut("!!!!fbupdate with %i rects!!!!\n", num_rects);
 			int i = 0;
 			for(; i < num_rects; i++)
 			{
 				uint16_t x,y,w,h;
 				x = y = w = h = 0;
-				read_from_server(c, &x, 2);
-				read_from_server(c, &y, 2);
-				read_from_server(c, &w, 2);
-				read_from_server(c, &h, 2);
+				if(read_from_server(c, &x, 2) < 0 ||
+				   read_from_server(c, &y, 2) < 0 ||
+				   read_from_server(c, &w, 2) < 0 ||
+				   read_from_server(c, &h, 2) < 0)
+				{
+					return -1;
+				}
+
 				x = sceNetNtohs(x);
 				y = sceNetNtohs(y);
 				w = sceNetNtohs(w);
 				h = sceNetNtohs(h);
 				int encoding = 0;
-				read_from_server(c, &encoding, 4);
+				if(read_from_server(c, &encoding, 4) < 0) { return -1; }
 				encoding = sceNetNtohl(encoding);
-				//debugOut("rect %i, %i,%i %ix%i enc %i\n", i, x, y, w, h, encoding);
+				debugOut("rect %i, %i,%i %ix%i enc %i\n", i, x, y, w, h, encoding);
 
 				switch(encoding)
 				{
 					case 0:
 					{
-						do_raw(c, x, y, w, h);
+						if(do_raw(c, x, y, w, h) < 0) { return -1; }
 					}
 					break;
 
 					case 1: // copyrect
 					{
-						do_copyrect(c, x, y, w, h);
+						if(do_copyrect(c, x, y, w, h) < 0) { return -1; }
 					}
 					break;
 
 					case 2: // rre
 					{
-						do_rre(c, x, y, w, h);
+						if(do_rre(c, x, y, w, h) < 0) { return -1; }
 					}
 					break;
 
 					case 5: // hextile
 					{
-						do_hextile(c, x, y, w, h);
+						if(do_hextile(c, x, y, w, h) < 0) { return -1; }
 					}
 					break;
 
 					case -239: // cursor
-						do_cursor(c, x, y, w, h);
+						if(do_cursor(c, x, y, w, h) < 0) { return -1; }
 					break;
 
 					default:
@@ -485,6 +504,8 @@ void vnc_handle_message(vnc_client *c)
 			sceKernelExitProcess(1);
 		break;
 	}
+
+	return 0;
 }
 
 void vnc_send_encodings(vnc_client *c)

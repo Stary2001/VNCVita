@@ -4,7 +4,7 @@
 #define do_rawBPP concat(do_raw_, BPP)
 #define draw_rectBPP concat(draw_rect_, BPP)
 
-void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+int do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
 	PIXEL bg = 0;
 	PIXEL fg = 0;
@@ -46,10 +46,10 @@ void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h
 			}
 
 			char subenc = 0;
-			read_from_server(c, &subenc, 1);
+			if(read_from_server(c, &subenc, 1) < 0) { return -1; }
 			if(subenc & 1)
 			{
-				do_rawBPP(c, x, y, tile_w, tile_h);
+				if(do_rawBPP(c, x, y, tile_w, tile_h) < 0) { return -1; }
 				bg = 0;
 				fg = 0;
 			}
@@ -57,17 +57,17 @@ void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h
 			{
 				if(subenc & 2) // background
 				{
-					bg = vnc_read_pixel(c);
+					if(vnc_read_pixel(c, &bg) < 0) { return -1; }
 				}
 
 				if(subenc & 4)
 				{
-					fg = vnc_read_pixel(c);
+					if(vnc_read_pixel(c, &fg) < 0) { return -1; }
 				}
 
 				if(subenc & 8)
 				{
-					read_from_server(c, &subrect_count, 1);
+					if(read_from_server(c, &subrect_count, 1) < 0) { return -1; }
 				}
 
 				if(subenc & 16)
@@ -86,9 +86,10 @@ void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h
 					{
 						for(i = 0; i < subrect_count; i++)
 						{
-							PIXEL p = vnc_read_pixel(c);
-							read_from_server(c, &xy, 1);
-							read_from_server(c, &wh, 1);
+							PIXEL p;
+							if(vnc_read_pixel(c, &p) < 0) { return -1; }
+							if(read_from_server(c, &xy, 1) < 0) { return -1; }
+							if(read_from_server(c, &wh, 1) < 0) { return -1; }
 							draw_rectBPP(c, x + ((xy >> 4) & 0xf), y + (xy & 0xf), ((wh >> 4) & 0xf) + 1, (wh & 0xf) + 1, p);
 						}
 						subrects_coloured = 0;
@@ -97,8 +98,8 @@ void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h
 					{
 						for(i = 0; i < subrect_count; i++)
 						{
-							read_from_server(c, &xy, 1);
-							read_from_server(c, &wh, 1);
+							if(read_from_server(c, &xy, 1) < 0) { return -1; }
+							if(read_from_server(c, &wh, 1) < 0) { return -1; }
 							draw_rectBPP(c, x + ((xy >> 4) & 0xf), y + (xy & 0xf), ((wh >> 4) & 0xf) + 1, (wh & 0xf) + 1, fg);
 						}
 					}
@@ -107,4 +108,6 @@ void do_hextileBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h
 			}
 		}
 	}
+
+	return 0;
 }
