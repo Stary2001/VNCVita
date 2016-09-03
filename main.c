@@ -92,7 +92,7 @@ int vnc_port = 5900;
 char disconnected_text[256];
 void update_text()
 {
-	snprintf(disconnected_text, 128, "not connected\npress START to quit, SELECT to connect to %s:%i\npress X to enter VNC host\npress O to enter VNC port", vnc_host, vnc_port);
+	snprintf(disconnected_text, 256, "not connected\npress START to quit, SELECT to connect to %s:%i\npress X to enter VNC host\npress O to enter VNC port", vnc_host, vnc_port);
 }
 
 int main()
