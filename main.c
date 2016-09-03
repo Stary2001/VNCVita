@@ -187,7 +187,16 @@ int main()
 		vita2d_clear_screen();
 		if(vnc && vnc->draw)
 		{
-			vita2d_draw_texture_scale(vnc->framebuffer_tex, 0, 0, 960/(float)vnc->width, 544/(float)vnc->height);
+			float xs = 960/(float)vnc->width;
+			float ys = 544/(float)vnc->height;
+
+			vita2d_draw_texture_scale(vnc->framebuffer_tex, 0, 0, xs, ys);
+			if(vnc->cursor_tex)
+			{
+				float c_x = vnc->cursor_x * xs;
+				float c_y = vnc->cursor_y * ys;
+				vita2d_draw_texture_scale(vnc->cursor_tex, c_x, c_y, xs, ys);
+			}
 		}
 
 		if(!vnc)

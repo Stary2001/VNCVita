@@ -73,6 +73,10 @@ struct vnc_client
 	int buffer_front;
 	int buffer_back;
 	char *buffer;
+
+	vita2d_texture *cursor_tex;
+	uint16_t cursor_x;
+	uint16_t cursor_y;
 };
 typedef struct vnc_client vnc_client;
 
@@ -85,6 +89,7 @@ void vnc_close(vnc_client *c);
 int vnc_handle(vnc_client *c);
 void vnc_send_update_request(vnc_client *c, uint8_t inc, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 void vnc_send_encodings(vnc_client *c);
+SceGxmTextureFormat vnc_get_gxm_format(struct vnc_pixelformat pix);
 
 int read_from_server(vnc_client *c, void* buff, int len);
 
