@@ -42,8 +42,6 @@ int read_chunked(vnc_client *c, void* buff, int len)
 
 int read_from_server(vnc_client *c, void* buff, int len)
 {
-	//debugOut("reading %i!\n", len);
-
 	int buffered = c->buffer_front - c->buffer_back;
 	if(len <= buffered)
 	{
@@ -79,7 +77,6 @@ int read_from_server(vnc_client *c, void* buff, int len)
 		if(r == len) // we got EXACTLY the amount we needed. we wasted the buffer. :(
 		{
 			// this means we don't update either position, as the buffer 'didnt change'
-			debugOut("success, exact amount!\n", len);
 			memcpy(buff, c->buffer + c->buffer_front, len);
 			return len;
 		}
@@ -275,9 +272,6 @@ int vnc_handle(vnc_client *c)
 				int major, minor;
 				major=minor=0;
 				sscanf(proto, "RFB 00%d.00%d", &major, &minor);
-
-				debugNetPrintf(DEBUG, "got rfb %i %i", major, minor);
-
 				if(major == 3)
 				{
 					// yay.
@@ -412,7 +406,6 @@ int vnc_handle(vnc_client *c)
 		ev.buttons = c->buttons;
 		ev.x = sceNetHtons(c->cursor_x);
 		ev.y = sceNetHtons(c->cursor_y);
-		debugNetPrintf(DEBUG, "ev %i %i\n", ev.x, ev.y);
 
 		sceNetSend(c->client_fd, &ev, sizeof(struct vnc_pointer_event), 0);
 
@@ -432,7 +425,6 @@ int vnc_handle_message(vnc_client *c)
 {
 	char message_type = -1;
 	if(read_from_server(c, &message_type, 1) < 0) { return -1; }
-	debugOut("message type %i\n", message_type);
 	switch(message_type)
 	{
 		case 0: // framebuffer update
@@ -443,7 +435,6 @@ int vnc_handle_message(vnc_client *c)
 			if(read_from_server(c, &num_rects, 2) < 0) { return -1; }
 			num_rects = sceNetNtohs(num_rects);
 
-			debugOut("!!!!fbupdate with %i rects!!!!\n", num_rects);
 			int i = 0;
 			for(; i < num_rects; i++)
 			{
@@ -464,7 +455,6 @@ int vnc_handle_message(vnc_client *c)
 				int encoding = 0;
 				if(read_from_server(c, &encoding, 4) < 0) { return -1; }
 				encoding = sceNetNtohl(encoding);
-				debugOut("rect %i, %i,%i %ix%i enc %i\n", i, x, y, w, h, encoding);
 
 				switch(encoding)
 				{

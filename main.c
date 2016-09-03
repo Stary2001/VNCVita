@@ -160,11 +160,10 @@ int main()
 			int pad_y = pad.ly - 127;
 			if(abs(pad_x) > PAD_DEAD || abs(pad_y) > PAD_DEAD)
 			{
-				int frames = 60;
-				// Movement!
+				int frames = 60; // how many frames to move all the way across the screen
+
 				vnc->cursor_x += (pad_x * (vnc->width / 128.0)) / frames;
 				vnc->cursor_y += (pad_y * (vnc->height / 128.0)) / frames;
-				debugNetPrintf(DEBUG, "%i %i\n", vnc->cursor_x, vnc->cursor_y);
 
 				// Clamp.
 				if(vnc->cursor_x < 0) { vnc->cursor_x = 0; }
@@ -176,12 +175,12 @@ int main()
 
 			if((last ^ pad.buttons) & SCE_CTRL_CROSS)
 			{
-				vnc->buttons ^= 1;
+				vnc->buttons ^= 1; // left
 			}
 
 			if((last ^ pad.buttons) & SCE_CTRL_CIRCLE)
 			{
-				vnc->buttons ^= 2;
+				vnc->buttons ^= 2; // right
 			}
 		}
 		else

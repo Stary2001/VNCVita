@@ -23,7 +23,6 @@ int do_cursorBPP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 	unsigned int red_mask = c->format.red_max << c->format.red_shift;
 	unsigned int green_mask = c->format.green_max << c->format.green_shift;
 	unsigned int blue_mask = c->format.blue_max << c->format.blue_shift;
-	debugNetPrintf(DEBUG, "r%08x >> %i g%08x >> %i b%08x >> %i", red_mask, c->format.red_shift, green_mask, c->format.green_shift, blue_mask, c->format.blue_shift);
 
 	for(yy = 0; yy < h; yy++)
 	{

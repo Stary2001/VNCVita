@@ -16,7 +16,6 @@ int do_rreBBP(vnc_client *c, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 	uint32_t num_subrects = 0;
 	read_from_server(c, &num_subrects, 4);
 	num_subrects = sceNetNtohl(num_subrects);
-	debugNetPrintf(DEBUG, "%i subrects", num_subrects);
 
 	PIXEL bg;
 	if(vnc_read_pixel(c, &bg) < 0) { return -1; }
