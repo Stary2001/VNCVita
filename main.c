@@ -95,6 +95,8 @@ void update_text()
 	snprintf(disconnected_text, 256, "not connected\npress START to quit, SELECT to connect to %s:%i\npress X to enter VNC host\npress O to enter VNC port", vnc_host, vnc_port);
 }
 
+#define PAD_DEAD 20
+
 int main()
 {
 	sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
@@ -129,6 +131,8 @@ int main()
 	strcpy(vnc_host, "(none)");
 	update_text();
 
+	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
+
 	while (1)
 	{
 		sceCtrlPeekBufferPositive(0, &pad, 1);
@@ -149,32 +153,66 @@ int main()
 			}
 		}
 
-		if(pressed & SCE_CTRL_CROSS)
+		// Input
+		if(vnc)
 		{
-			if(ime("Enter hostname", IME_TEXT, vnc_host, 256, strcmp(vnc_host, "(none)") != 0) < 0)
+			int pad_x = pad.lx - 127;
+			int pad_y = pad.ly - 127;
+			if(abs(pad_x) > PAD_DEAD || abs(pad_y) > PAD_DEAD)
 			{
-				// oh no?
+				int frames = 60;
+				// Movement!
+				vnc->cursor_x += (pad_x * (vnc->width / 128.0)) / frames;
+				vnc->cursor_y += (pad_y * (vnc->height / 128.0)) / frames;
+				debugNetPrintf(DEBUG, "%i %i\n", vnc->cursor_x, vnc->cursor_y);
+
+				// Clamp.
+				if(vnc->cursor_x < 0) { vnc->cursor_x = 0; }
+				if(vnc->cursor_x > vnc->width) { vnc->cursor_x = vnc->width; }
+
+				if(vnc->cursor_y < 0) { vnc->cursor_y = 0; }
+				if(vnc->cursor_y > vnc->height) { vnc->cursor_y = vnc->height; }
 			}
-			else
+
+			if((last ^ pad.buttons) & SCE_CTRL_CROSS)
 			{
-				update_text();
-				host_entered = 1;
+				vnc->buttons ^= 1;
+			}
+
+			if((last ^ pad.buttons) & SCE_CTRL_CIRCLE)
+			{
+				vnc->buttons ^= 2;
 			}
 		}
-
-		if(pressed & SCE_CTRL_CIRCLE)
+		else
 		{
-			char vnc_port_buf[256];
-			itoa(vnc_port, vnc_port_buf, 10);
-
-			if(ime("Enter port", IME_NUM, vnc_port_buf, 256, 1) < 0)
+			if(pressed & SCE_CTRL_CROSS)
 			{
-				// oh no?
+				if(ime("Enter hostname", IME_TEXT, vnc_host, 256, strcmp(vnc_host, "(none)") != 0) < 0)
+				{
+					// oh no?
+				}
+				else
+				{
+					update_text();
+					host_entered = 1;
+				}
 			}
-			else
+
+			if(pressed & SCE_CTRL_CIRCLE)
 			{
-				vnc_port = atoi(vnc_port_buf);
-				update_text();
+				char vnc_port_buf[256];
+				itoa(vnc_port, vnc_port_buf, 10);
+
+				if(ime("Enter port", IME_NUM, vnc_port_buf, 256, 1) < 0)
+				{
+					// oh no?
+				}
+				else
+				{
+					vnc_port = atoi(vnc_port_buf);
+					update_text();
+				}
 			}
 		}
 
@@ -203,7 +241,6 @@ int main()
 		{
 			vita2d_font_draw_text(font, 0, 0, RGBA8(0, 0, 0, 0xff), 20, disconnected_text);
 			vita2d_font_draw_text(font, 0, 0, RGBA8(0, 0, 0, 0xff), 20, disconnected_text);
-
 		}
 		vita2d_end_drawing();
 		vita2d_swap_buffers();

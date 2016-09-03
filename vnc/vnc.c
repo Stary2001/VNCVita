@@ -103,6 +103,17 @@ int read_from_server(vnc_client *c, void* buff, int len)
 vnc_client *vnc_create(const char *host, int port)
 {
 	vnc_client *c = (vnc_client*)malloc(sizeof(vnc_client));
+
+	c->cursor_tex = NULL;
+	c->cursor_x = 0;
+	c->cursor_y = 0;
+	c->buttons = 0;
+
+	// old_ used to detect changes and so to send messages
+	c->old_cursor_x = 0;
+	c->old_cursor_y = 0;
+	c->old_buttons = 0;
+
 	c->buffer = malloc(VNC_BUFFER_SIZE);
 	c->buffer_front = 0;
 	c->buffer_back = 0;
@@ -391,6 +402,23 @@ int vnc_handle(vnc_client *c)
 				vnc_handle_message(c);
 			break;
 		}
+	}
+
+	if(c->state == NORMAL && (c->old_cursor_x != c->cursor_x || c->old_cursor_y != c->cursor_y || c->old_buttons != c->buttons))
+	{
+		// send an update packet.
+		struct vnc_pointer_event ev;
+		ev.type = 5;
+		ev.buttons = c->buttons;
+		ev.x = sceNetHtons(c->cursor_x);
+		ev.y = sceNetHtons(c->cursor_y);
+		debugNetPrintf(DEBUG, "ev %i %i\n", ev.x, ev.y);
+
+		sceNetSend(c->client_fd, &ev, sizeof(struct vnc_pointer_event), 0);
+
+		c->old_cursor_x = c->cursor_x;
+		c->old_cursor_y = c->cursor_y;
+		c->old_buttons = c->buttons;
 	}
 
 	return 0;

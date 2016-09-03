@@ -51,6 +51,14 @@ struct vnc_set_encodings
 	uint16_t num_encodings;
 };
 
+struct vnc_pointer_event
+{
+	uint8_t type;
+	uint8_t buttons;
+	uint16_t x;
+	uint16_t y;
+};
+
 #define VNC_BUFFER_SIZE 0x100000
 
 struct vnc_client
@@ -75,8 +83,13 @@ struct vnc_client
 	char *buffer;
 
 	vita2d_texture *cursor_tex;
-	uint16_t cursor_x;
-	uint16_t cursor_y;
+	uint8_t buttons;
+	int cursor_x;
+	int cursor_y;
+
+	uint8_t old_buttons;
+	int old_cursor_x;
+	int old_cursor_y;
 };
 typedef struct vnc_client vnc_client;
 
